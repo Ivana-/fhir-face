@@ -84,7 +84,7 @@
                (array-seq (.-childNodes par))))))
 
 (defn select-xhr [{:keys [value resourceType] :as opts}]
-  (let [common-fetch-params (rf/subscribe [::common-fetch-params]) 
+  (let [common-fetch-params (rf/subscribe [::common-fetch-params])
 
         ;; FIXME show all types is incoming list is empty
         resourceType (if (empty? resourceType) (:all-resourceTypes @common-fetch-params) resourceType)
@@ -118,7 +118,7 @@
       (fn [{:keys [value on-change label-fn value-fn placeholder] :as props}]
         (let [label-fn (or label-fn pr-str)
               value-fn (or value-fn identity)
-              fetch-load (fn [text]
+              fetch-load #_(fn [text]
                            ;;(prn @common-fetch-params)
                            (swap! state assoc :loading true)
                            (fetch/json-fetch
@@ -129,7 +129,18 @@
                              :success (fn [x]
                                         (swap! state assoc
                                                :loading false
-                                               :suggestions (mapv (comp value-fn :resource) (:entry x))))}))]
+                                               :suggestions (mapv (comp value-fn :resource) (:entry x))))}))
+              (fn [text]
+                (swap! state assoc :loading true)
+                (-> (fetch/fetch-promise {:uri (str (:base-url @common-fetch-params) "/" (:resourceType @state))
+                                          :token (:id_token @common-fetch-params)
+                                          :params (cond-> {:_count 50} ;; :_sort "name"}
+                                                    (and text (not (str/blank? text))) (assoc :_text text))})
+                    (.then (fn [x] (swap! state assoc
+                                          :loading false
+                                          :suggestions (mapv (comp value-fn :resource) (:entry (:data x))))))
+                    (.catch (fn [e] (prn (fetch/error-message e))))))]
+
           [:div.select-xhr
            [:style (garden/css style)]
 

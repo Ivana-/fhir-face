@@ -79,6 +79,8 @@
      (cond
        (:is-fetching data) [:div.loader "Loading"]
 
+       (:error data) [:div (str (:error data))]
+
        (and type (= type (get-in data [:query-params :type])))
        (if (empty? items)
          [:div "Nothing to show"]

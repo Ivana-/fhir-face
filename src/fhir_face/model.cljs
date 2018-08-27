@@ -1,7 +1,8 @@
 (ns fhir-face.model
   (:require [re-frame.core :as rf]
             [clojure.string :as str]
-            [zframes.redirect :refer [href redirect]]))
+            [zframes.redirect :refer [href redirect]]
+            [zframes.fetch :refer [fetch-promise error-data error-message]]))
 
 (def root-path [:main])
 
@@ -11,6 +12,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+#_(comment
 (defn dec-counter-check-finish [db]
   (let [counter-path (conj root-path :tmp :fetching-counter)
         fetching-counter (dec (or (get-in db counter-path) 0))]
@@ -24,7 +26,6 @@
                                                                   ;;(update :query-params #(merge % (:query-params d)))
                                                                   ))))
                                        (dissoc :tmp)))))))
-
 (rf/reg-event-fx
  ::load-all
  (fn [{db :db} [_ {page :page params :query-params}]]
@@ -76,7 +77,6 @@
                         (update-in (conj root-path :data) dissoc :error))
               new? (assoc-in (conj root-path :data :resource) new-resource))}))))
 
-
 (rf/reg-event-db
  ::entity-loaded
  (fn [db [_ {:keys [data]}]]
@@ -120,6 +120,110 @@
    (-> db
        (assoc-in (conj root-path :tmp :resource) data)
        dec-counter-check-finish)))
+)
+
+;; Via promises
+
+(rf/reg-event-fx
+ ::load-all
+ (fn [{db :db} [_ {page :page params :query-params}]]
+   ;;(prn "test-fetch" page params)
+   (let [{:keys [type _text id]} params
+         base-url (get-in db [:config :base-url])
+         token (get-in db [:auth :id_token])
+         data (get-in db (conj root-path :data))
+         fp (fn [k] (conj root-path :data k))
+         fetching-path (fp :is-fetching)
+         get-res-structure (fn [resp]
+                             (let [s (reduce (fn [a x]
+                                               (update-in a
+                                                          (->> (:path x) (interpose :content) (mapv keyword))
+                                                          #(merge % (cond-> x
+                                                                      (:type x) (assoc ;;:type-full (:type x)
+                                                                                 :type (keyword (get-in x [:type :id])))
+                                                                      true (dissoc :resource :path :id :meta :resourceType)))))
+                                             {} (mapv :resource (get-in resp [:data :entry])))
+                                   s-with-meta (merge s {:meta {:type :Meta}
+                                                         :resourceType {:type :code}})]
+                               s-with-meta))]
+
+     ;; good series queries
+
+     #_(-> (if (:entity data) (js/Promise.resolve nil) (fetch-promise {:uri (str base-url "/Entity")
+                                                                     :params {:_count 500 :.type "resource" :_sort ".id"}
+                                                                     :token token}))
+
+         (.then (fn [x] (js/Promise.all [(cond-> {}
+                                           x (assoc :entity (mapv :resource (get-in x [:data :entry]))))
+                                         (if (and type (not= type (get-in data [:query-params :type])))
+                                           (fetch-promise {:uri (str base-url "/Attribute")
+                                                           :params {:entity type}
+                                                           :token token}))])))
+         (.then (fn [[x y]] (js/Promise.all [(cond-> x
+                                               y (assoc :resource-structure (get-res-structure y)))
+                                             (if (and type (= :resource-grid page))
+                                               (fetch-promise {:uri (str base-url "/" type)
+                                                               :token token
+                                                               :params (cond-> {:_count 50} ;; :_sort "name"}
+                                                                         (and _text (not (str/blank? _text)))
+                                                                         (assoc :_text _text))}))])))
+         (.then (fn [[x y]] (js/Promise.all [(cond-> x
+                                               y (assoc :resource-grid (mapv :resource (get-in y [:data :entry]))))
+                                             (if (and type id (= :resource-edit page))
+                                               (fetch-promise {:uri (str base-url "/" type "/" id)
+                                                               :token token}))])))
+         (.then (fn [[x y]]
+                  (let [r (cond-> x
+                            y (assoc :resource (:data y)))]
+                    (rf/dispatch [::set-values-by-paths
+                                  (reduce (fn [a [k v]] (if v (assoc a (fp k) v) a))
+                                          {(fp :error) nil
+                                           fetching-path false
+                                           (fp :query-params) params} r)]
+                                 ))))
+
+         (.catch (fn [e] (rf/dispatch [::set-values-by-paths {(conj root-path :data :error) (str e)
+                                                              fetching-path false}]))))
+
+     ;; parallel query
+
+     (-> (js/Promise.all [(if-not (:entity data)
+                            (fetch-promise {:uri (str base-url "/Entity")
+                                            :params {:_count 500 :.type "resource" :_sort ".id"}
+                                            :token token}))
+                          (if (and type (not= type (get-in data [:query-params :type])))
+                            (fetch-promise {:uri (str base-url "/Attribute")
+                                            :params {:entity type}
+                                            :token token}))
+                          (if (and type (= :resource-grid page))
+                            (fetch-promise {:uri (str base-url "/" type)
+                                            :token token
+                                            :params (cond-> {:_count 50} ;; :_sort "name"}
+                                                      (and _text (not (str/blank? _text))) (assoc :_text _text))}))
+                          (if (and type id (= :resource-edit page))
+                            (fetch-promise {:uri (str base-url "/" type "/" id)
+                                            :token token}))])
+         (.then (fn [[e a g i]]
+                  (rf/dispatch [::set-values-by-paths
+                                (cond-> {(fp :error) nil
+                                         fetching-path false
+                                         (fp :query-params) params}
+                                  e (assoc (fp :entity) (mapv :resource (get-in e [:data :entry])))
+                                  a (assoc (fp :resource-structure) (get-res-structure a))
+                                  g (assoc (fp :resource-grid) (mapv :resource (get-in g [:data :entry])))
+                                  i (assoc (fp :resource) (:data i))
+                                  (= :resource-new page) (assoc (fp :resource) {:resourceType type})
+                                  )])))
+
+         (.catch (fn [e] (rf/dispatch [::set-values-by-paths {(fp :error) (str e)
+                                                              fetching-path false}]))))
+
+     #_(-> (js/Promise.resolve {:qqq 333})
+         (.then #(assoc-in % [:transit :zazaza] "zazaza")))
+
+     {:db (assoc-in db fetching-path true)}
+     )))
+
 
 (rf/reg-sub
  ::data
@@ -248,7 +352,7 @@
 ;; Saver
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
+#_(comment
 (rf/reg-event-fx
  ::save-resource
  (fn [{db :db} [_ {:keys [type id] :as params}]]
@@ -279,4 +383,154 @@
  ::save-resource-error
  (fn [{db :db} [_ {data :data}]]
    {:db (assoc-in db (conj root-path :data :error) data)}))
+)
 
+
+;; Via promises
+
+(rf/reg-event-fx
+ ::save-resource
+ (fn [{db :db} [_ {:keys [type id] :as params}]]
+   ;;(prn "::save-resource" params type)
+   (let [base-url (get-in db [:config :base-url])
+         res (get-in db (conj root-path :data :resource))
+         ;;id (:id res)
+         ]
+     (-> (fetch-promise (merge {:body res
+                                :token (get-in db [:auth :id_token])}
+                               (if id
+                                 {:uri (str base-url "/" type "/" id)
+                                  :method "PUT"}
+                                 {:uri (str base-url "/" type)
+                                  :method "POST"})))
+         (.then (fn [_] (redirect (href "resource" {:type type}))))
+         (.catch (fn [e] (rf/dispatch [::set-values-by-paths {(conj root-path :data :error)
+                                                              (or
+                                                               (dissoc (:data (error-data e)) :resourceType)
+                                                               (error-message e))}]))))
+     {:db (update-in db (conj root-path :data) dissoc :error)})))
+
+
+(rf/reg-event-db
+ ::set-values-by-paths
+ (fn [db [_ paths-values]] (reduce (fn [a [k v]] ((if (vector? k) assoc-in assoc) a k v)) db paths-values)))
+
+
+
+#_(comment
+  ;; https://gist.github.com/pesterhazy/74dd6dc1246f47eb2b9cd48a1eafe649
+(ns my.promises
+  "Demo to show different approaches to handling promise chains in ClojureScript
+  In particular, this file investigates how to pass data between Promise
+  callbacks in a chain.
+  See Axel Rauschmayer's post
+  http://2ality.com/2017/08/promise-callback-data-flow.html for a problem
+  statement.
+  The examples is this: based on n, calculate (+ (square n) n), but with each step
+  calculated asynchronously. The problem for a Promise-based solution is that the
+  sum step needs access to a previous value, n.
+  Axel's solution 1 is stateful and not idiomatic in Clojurescript.
+  Solution 1 (nested scopes) is implemented in test3.
+  Solution 2 (multiple return values) is implemented in test1 and test2.
+  For reference, a synchronous implementation is implemented in test0."
+  (:refer-clojure :exclude [resolve]))
+
+(enable-console-print!)
+
+;; helpers for working with promises in CLJS
+
+(defn every [& args]
+  (js/Promise.all (into-array args)))
+
+(defn soon
+  "Simulate an asynchronous result"
+  ([v] (soon v identity))
+  ([v f] (js/Promise. (fn [resolve]
+                        (js/setTimeout #(resolve (f v))
+                                       500)))))
+
+(defn resolve [v]
+  (js/Promise.resolve v))
+
+;; helpers
+
+(defn square [n] (* n n))
+
+;; test0
+
+(defn test0
+  "Synchronous version - for comparison
+  The code has three steps:
+  - get value for n
+  - get square of n
+  - get sum of n and n-squared
+  Note that step 3 requires access to the original value, n, and to the computed
+  value, n-squared."
+  []
+  (let [n 5
+        n-squared (square 5)
+        result (+ n n-squared)]
+    (prn result)))
+
+;; test1
+
+(defn square-step [n]
+  (soon (every n (soon n square))))
+
+(defn sum-step [[n squared-n]] ;; Note: CLJS destructuring works with JS arrays
+  (soon (+ n squared-n)))
+
+(defn test1
+  "Array approach, flat chain: thread multiple values through promise chain by using Promise.all"
+  []
+  (-> (resolve 5)
+      (.then square-step)
+      (.then sum-step)
+      (.then prn)))
+
+;; test2
+
+(defn to-map-step [array]
+  (zipmap [:n :n-squared] array))
+
+(defn sum2-step [{:keys [n n-squared] :as m}]
+  (soon (assoc m :result (+ n n-squared))))
+
+(defn test2
+  "Accumulative map approach, flat chain: add values to CLJS map in each `then` step, making
+  it possible for later members of the chain to access previous results"
+  []
+  (-> (resolve 5)
+      (.then square-step)
+      (.then to-map-step)
+      (.then sum2-step)
+      ;; Note: `(.then :result)` doesn't work because `:result` is not
+      ;; recognized as a function. So we need to wrap it in an anon fn.
+      ;; This could be easily fixed by adding a CLJS `then` function that
+      ;; has a more inclusive notion of what a function is.
+      (.then #(:result %))
+      (.then prn)))
+
+;; test3
+
+(defn square-step-fn [n]
+  ;; This could be called a "resolver factory" fn. It's a higher-order function
+  ;; that returns a resolve function. `n` is captured in a closure.
+  (fn [n-squared]
+    (soon (+ n n-squared))))
+
+(defn square-and-sum-step [n]
+  (-> (soon (square n))
+      ;; note that square-step-fn is _called_ here, not referenced, in order to
+      ;; provide its inner body with access to the previous result, `n`.
+      (.then (square-step-fn n))))
+
+(defn test3
+  "Nested chain approach: instead of a flat list, use a hierarchy, nesting one Promise chain in another.
+  Uses a closure to capture the intermediate result, `n`, making it available to the nested chain."
+  []
+  (-> (resolve 5)
+      (.then square-and-sum-step)
+      (.then prn)))
+
+)

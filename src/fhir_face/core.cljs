@@ -42,7 +42,10 @@
          openid-url (or (:openid-url qs) (str base-url "/oauth2/authorize"))
          cookie-auth-key (str "auth_" base-url)
          auth (cookies/get-cookie cookie-auth-key)]
-     (if (and (nil? jwt) (nil? auth))
+
+     ;; FIXME !!!
+
+     (if false ;; (and (nil? jwt) (nil? auth))
        {::redirect/page-redirect
         {:uri openid-url
          :params {:redirect_uri (let [url-items (str/split (.. js/window -location -href) #"#")]
