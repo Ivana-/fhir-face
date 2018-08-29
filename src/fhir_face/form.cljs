@@ -9,7 +9,9 @@
    [fhir-face.widgets :as ws]
    [clojure.set :as set]))
 
-(defonce atom-style (r/atom nil))
+(defonce atom-style (r/atom {:style 0}))
+
+(def styles [:block :inline-table :inline-grid])
 
 (defn style []
   [[:.root {:margin-left "-40px"}]
@@ -31,7 +33,7 @@
     [:.unactive {:color "#cccccc"}]
     [:.extra {:color "#cc8888"}]]
 
-   [:.name-value {:display (if (:inline @atom-style) :inline-grid :block)
+   [:.name-value {:display (get styles (:style @atom-style))
                   :padding-left "40px"
                   :font-size "20px"
                   ;;:border "1px solid"
@@ -63,14 +65,19 @@
    [:.coll {;;:padding-left "30px"
             :display :flex
             :flex-wrap :wrap
-            :align-items :flex-start
+        ;;    :align-items :flex-start
             ;;:justify-content :space-evenly ;;:space-between
             }]
 
-   [:.item  (merge (:thin-gray style/borders)
+   [:.item  (merge nil ;;(:thin-gray style/borders)
                    {:display :flex
-                    :margin "0 5px 5px 0"
-                    :font-size "20px"})]
+                    :margin "10px 20px 10px 0"
+                    :font-size "20px"
+                    ;;:flex "1 1 20%"
+                    ;;:flex "1 0 20%"
+                    :flex "1 0 0"
+                    :box-shadow "5px 5px 20px #cbcbcb"
+                    })]
 
    [:.error {:font-family :monospace
              :font-size "20px"
@@ -300,7 +307,8 @@
                                           :style merge
                                           {:display :flex
                                            :flex-direction :column
-                                           :background-color "#f5f5f5"})
+                                           ;;:background-color "#fafafa"
+                                           })
                                   [:i.material-icons
                                    (click-dispatch [::model/delete-collection-item path i])
                                    :close]]]))
@@ -409,8 +417,8 @@
       [:span {:style {:display :flex}}
        [:button.btn {:on-click (fn [] (rf/dispatch [::model/expand-all]))} "Expand all"]
        [:button.btn {:on-click (fn [] (rf/dispatch [::model/collapse-all]))} "Collapse all"]
-       [:button.btn {:on-click (fn [] (swap! atom-style update :inline not))}
-        (str (if (:inline @atom-style) "Classic" "Free") " style")]]
+       [:button.btn {:on-click (fn [] (swap! atom-style update :style #(mod (inc %) (count styles))))}
+        (str (get styles (:style @atom-style)) " style")]]
       [:span.action {:on-click #(redirect (href "resource" {:type type}))} (str type " grid")]]
 
      (if is-fetching
