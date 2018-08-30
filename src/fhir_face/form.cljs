@@ -20,7 +20,8 @@
                    {:outline :none
                     :font-size "16px"
                     :font-weight :bold
-                    :margin-left "25px"})]
+                    :margin-left "25px"
+                    :width :fit-content})]
 
    [:.non-selectable {:-webkit-user-select :none
                       :-moz-user-select :none
@@ -33,6 +34,9 @@
     [:.unactive {:color "#cccccc"}]
     [:.extra {:color "#cc8888"}]]
 
+   [:.collapsed-summary {:background-color :lightblue
+                         :width :fit-content}]
+
    [:.name-value {:display (get styles (:style @atom-style))
                   :padding-left "40px"
                   :font-size "20px"
@@ -42,7 +46,7 @@
    [:.item-value {:width :-webkit-fill-available ;;"100%"
                   :font-size "1px"
                   ;;:border "1px solid"
-                  :padding "10px 20px 10px 0"
+                  :padding "10px 10px 10px 0"
                   ;;:padding-right "20px"
                   ;;:padding-bottom "10px"
                   ;;:padding-top "10px"
@@ -63,6 +67,7 @@
                    :margin-left "10px"}]
 
    [:.coll {;;:padding-left "30px"
+            :margin-right "-10px"
             :display :flex
             :flex-wrap :wrap
         ;;    :align-items :flex-start
@@ -71,12 +76,13 @@
 
    [:.item  (merge nil ;;(:thin-gray style/borders)
                    {:display :flex
-                    :margin "10px 20px 10px 0"
+                    :margin "10px 15px 10px 5px"
                     :font-size "20px"
                     ;;:flex "1 1 20%"
                     ;;:flex "1 0 20%"
                     :flex "1 0 0"
-                    :box-shadow "5px 5px 20px #cbcbcb"
+                    :box-shadow "3px 3px 20px #cbcbcb"
+                    :border-radius "5px"
                     })]
 
    [:.error {:font-family :monospace
@@ -337,7 +343,7 @@
         count-all (count (set/union (-> attrs :content keys* set) (-> val keys* set)))
         count-val (if (coll? val) (count val) 0)
         collapsed-info ;;[:span.non-selectable
-        [:span.label.non-selectable
+        [:span.label.non-selectable.collapsed-summary
          (click-dispatch [::model/expand-collapse-node path])
          (if collection?
            (str "[" count-val " item" (if (not= 1 count-val) "s") "]")
@@ -347,7 +353,7 @@
            (update (click-dispatch [::model/expand-collapse-node path])
                    :style assoc :margin-left "5px")
            (if (get-in e path) :location_on :play_arrow)]
-        ;; ]
+         ;;]
         ]
     [:div
      {:class (cond (keyword? name) :name-value

@@ -12,18 +12,23 @@
                     :font-size "16px"
                     :font-weight :bold})]
 
-   [:.item {;;:font-size "14px"
-            :display :flex
-            :justify-content :space-between
-            :cursor :pointer
-            :font-family :system-ui
-            :padding "5px 0 5px 0"
-            :border-bottom "1px solid"
-            :border-color "#cccccc"}
-    [:&:hover {:background-color "#f1f1f1"}]
-    [:.column {:font-size "20px"
-               ;;:font-weight :bold
-               :margin-left "10px"}]]
+
+   [:table {:width "100%"
+            :border-collapse :collapse}]
+   [:th {:color "#ddd"}]
+   [:td {:font-family :system-ui
+         :font-size "20px"
+         :height "50px"
+         :cursor :pointer
+         :border-bottom "1px solid #ddd"}]
+   ;;[:td:hover {:background-color "#f5f5f5"}]
+   [:.item:hover {:background-color "#f5f5f5"}]
+
+   ;;[:.id :.display {:text-align :left}]
+   [:.display {:padding-left "20px"}]
+   [:.size {:padding-left "20px"
+            :text-align :right}]
+
    ])
 
 
@@ -84,15 +89,19 @@
        (and type (= type (get-in data [:query-params :type])))
        (if (empty? items)
          [:div "Nothing to show"]
-         (let [flex (fn [x] {:style {:flex-basis (str x "%")}})]
-           [:div (for [i items]
-                   (let [d (ws/resource-display i)]
-                     [:div.item {:key (:id i)
-                                 :on-click #(redirect (href "resource" "edit" {:type type :id (:id i)}))}
-                      [:span.column (flex (if d 20 90)) (:id i)]
-                      (if d [:span.column (flex 70) d])
-                      [:span.column #_(flex 10) (.-length (str i))]
-                      ]))]))
+         [:table
+          (into
+           [:tbody
+            [:tr [:th.id "Id"]
+             [:th.display "Display"]
+             [:th.size "Size"]]]
+           (for [i items]
+             [:tr.item {:key (:id i)
+                        :on-click #(redirect (href "resource" "edit" {:type type :id (:id i)}))}
+              [:td.id (:id i)]
+              [:td.display (ws/resource-display i)]
+              [:td.size (.-length (str i))]
+              ]))])
        )]))
 
 (def routes {:resource-grid (fn [params]

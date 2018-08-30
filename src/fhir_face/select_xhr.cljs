@@ -87,7 +87,7 @@
   (let [common-fetch-params (rf/subscribe [::common-fetch-params])
 
         ;; FIXME show all types is incoming list is empty
-        resourceType (if (empty? resourceType) (:all-resourceTypes @common-fetch-params) resourceType)
+        resourceType (if (empty? resourceType) (into [""] (:all-resourceTypes @common-fetch-params)) resourceType)
 
         value-type (:resourceType value)
         state (r/atom {:resourceType (or value-type (first resourceType))
