@@ -49,8 +49,8 @@
 
      ;; FIXME !!!
 
-     (if ;; false ;;
-       (and (nil? jwt) (nil? auth))
+     (if false ;;
+       ;;(and (nil? jwt) (nil? auth))
        {::redirect/page-redirect
         {:uri openid-url
          :params {:redirect_uri (let [url-items (str/split (.. js/window -location -href) #"#")]

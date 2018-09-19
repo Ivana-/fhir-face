@@ -9,11 +9,11 @@ for any fhir resource, containing in choosen sansara fhir server.
  
 ![alt text](https://user-images.githubusercontent.com/10473034/45783479-9199cb80-bc6e-11e8-959b-90f46b4c5a45.png "Reference graph view")
 
-![alt text](https://user-images.githubusercontent.com/10473034/45783489-978fac80-bc6e-11e8-9152-d6b9dde81a99.png "Resource grid view")
+![alt text](https://user-images.githubusercontent.com/10473034/45785396-d0328480-bc74-11e8-8eaa-4fdfb54902b8.png "Resource grid view")
 
-![alt text](https://user-images.githubusercontent.com/10473034/45783499-9e1e2400-bc6e-11e8-9704-4cb644ae4a8e.png "Resource edit view")
+![alt text](https://user-images.githubusercontent.com/10473034/45785400-d4f73880-bc74-11e8-974b-e6616280ae87.png "Resource edit view")
 
-![alt text](https://user-images.githubusercontent.com/10473034/45783511-a5ddc880-bc6e-11e8-91e8-d902a9cce275.png "Resource edit view")
+![alt text](https://user-images.githubusercontent.com/10473034/45785406-dcb6dd00-bc74-11e8-9d57-35ab7462c8da.png "Resource edit view")
 
 
 ## Setup
