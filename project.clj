@@ -34,8 +34,10 @@
                            ;; in the default browser once Figwheel has
                            ;; started and compiled your application.
                            ;; Comment this out once it no longer serves you.
-                           :open-urls [  "http://localhost:3449/?base-url=http://localhost:8080&client_id=local#/resource"
+                           :open-urls [;;"http://localhost:3449/?base-url=http://localhost:8080&client_id=local#/resource"
                                        ;;"http://localhost:3449/?base-url=https://cleo-sansara.health-samurai.io&client_id=local"
+
+                                       "http://localhost:3449/?base-url=http://localhost:8080&client_id=local#/graph-view"
                                        ]}
 
                 :compiler {:main fhir-face.core

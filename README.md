@@ -6,6 +6,15 @@ Universal frontend view to any sansara fhir server
 
 This application allows simple full-text search, CRUD and possible pretty view
 for any fhir resource, containing in choosen sansara fhir server.
+ 
+![alt text](https://user-images.githubusercontent.com/10473034/45783479-9199cb80-bc6e-11e8-959b-90f46b4c5a45.png "Reference graph view")
+
+![alt text](https://user-images.githubusercontent.com/10473034/45783489-978fac80-bc6e-11e8-9152-d6b9dde81a99.png "Resource grid view")
+
+![alt text](https://user-images.githubusercontent.com/10473034/45783499-9e1e2400-bc6e-11e8-9704-4cb644ae4a8e.png "Resource edit view")
+
+![alt text](https://user-images.githubusercontent.com/10473034/45783511-a5ddc880-bc6e-11e8-91e8-d902a9cce275.png "Resource edit view")
+
 
 ## Setup
 

@@ -46,6 +46,12 @@
   #_(defroute "/auth#:auth" {:as params}
       (re-frame/dispatch [:events/auth (:auth params)]))
 
+
+  (defroute "/graph-view" [:as params]
+    (re-frame/dispatch [::set-active-panel (merge params {:page :graph-view})]))
+
+
+
   ;; must be at the end, cause routes matches by order
   (defroute "*" []
     (re-frame/dispatch [::set-active-panel {:page :blank}]))

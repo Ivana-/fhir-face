@@ -10,7 +10,11 @@
             [zframes.window-location :as window-location]
             [zframes.fetch]
             [zframes.redirect :as redirect]
-            [re-frisk.core :refer [enable-re-frisk!]]))
+            [re-frisk.core :refer [enable-re-frisk!]]
+
+            ;;[fhir-face.test-svg :as test-svg]
+
+            ))
 
 #_(defn on-js-reload []
   ;; optionally touch your app-state to force rerendering depending on
@@ -45,7 +49,8 @@
 
      ;; FIXME !!!
 
-     (if false ;; (and (nil? jwt) (nil? auth))
+     (if ;; false ;;
+       (and (nil? jwt) (nil? auth))
        {::redirect/page-redirect
         {:uri openid-url
          :params {:redirect_uri (let [url-items (str/split (.. js/window -location -href) #"#")]

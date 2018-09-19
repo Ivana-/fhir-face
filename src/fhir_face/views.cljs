@@ -2,7 +2,11 @@
   (:require
    [re-frame.core :as re-frame]
    [fhir-face.grid :as grid]
-   [fhir-face.form :as form]))
+   [fhir-face.form :as form]
+   [graph-view.core :as graph-view]
+
+
+   ))
 
 #_(defn home-panel []
   (let [;;name (re-frame/subscribe [:subs/name])
@@ -23,7 +27,13 @@
    [:div
     [:a {:href "#/"} "go to Home Page"]]])
 
-(def routes (merge grid/routes form/routes))
+
+(def routes
+  (merge
+   grid/routes
+   form/routes
+   graph-view/routes
+   ))
 
 (re-frame/reg-sub
  ::active-panel

@@ -2,6 +2,7 @@
   (:require [re-frame.core :as rf]
             [clojure.string :as str]
             [fhir-face.style :as style]
+            [fhir-face.nav :as nav]
             [fhir-face.model :as model]
             [zframes.redirect :refer [href redirect]]
             [fhir-face.widgets :as ws]))
@@ -54,55 +55,56 @@
 
 
 (defn resource-grid [params]
-  ;; (prn "resour;; ce-grid" params)
+  ;; (prn "resource-grid" params)
   (let [data @(rf/subscribe [::model/data])
         entity (mapv :id (:entity data))
         items (:resource-grid data)
         {:keys [type]} params]
     [:div.page
      [style/with-common-style style]
+     [nav/nav-bar]
+     [:div.content
+      [:span
+       {:style {:display :flex
+                :align-items :baseline}}
+       [:h1.h (if type (str type " grid") "Select resource type")]]
 
-     [:span
-      {:style {:display :flex
-               :align-items :baseline}}
-      [:h1.h (if type (str type " grid") "Select resource type")]]
-
-     [:div.bar
-      [:span {:style {:display :flex}}
-       (into [:select {:class :input
-                       :value (str type)
-                       :on-change #(let [v (.. % -target -value)]
+      [:div.bar
+       [:span {:style {:display :flex}}
+        (into [:select {:class :input
+                        :value (str type)
+                        :on-change #(let [v (.. % -target -value)]
                                      (redirect (href "resource"
                                                      (if (str/blank? v)
                                                        {} ;;(dissoc params :type)
                                                        (merge params {:type v})))))}
-              [:option ""]]
-             (mapv (fn [x] [:option x]) entity))
-       (if type [search-box params])]
-      (if type [:span.action {:on-click #(redirect (href "resource" "new" {:type type}))} (str "New " type)])]
+               [:option ""]]
+              (mapv (fn [x] [:option x]) entity))
+        (if type [search-box params])]
+       (if type [:span.action {:on-click #(redirect (href "resource" "new" {:type type}))} (str "New " type)])]
 
-     (cond
-       (:is-fetching data) [:div.loader "Loading"]
+      (cond
+        (:is-fetching data) [:div.loader "Loading"]
 
-       (:error data) [:div (str (:error data))]
+        (:error data) [:div (str (:error data))]
 
-       (and type (= type (get-in data [:query-params :type])))
-       (if (empty? items)
-         [:div "Nothing to show"]
-         [:table
-          (into
-           [:tbody
-            [:tr [:th.id "Id"]
-             [:th.display "Display"]
-             [:th.size "Size"]]]
-           (for [i items]
-             [:tr.item {:key (:id i)
-                        :on-click #(redirect (href "resource" "edit" {:type type :id (:id i)}))}
-              [:td.id (:id i)]
-              [:td.display (ws/resource-display i)]
-              [:td.size (.-length (str i))]
-              ]))])
-       )]))
+        (and type (= type (get-in data [:query-params :type])))
+        (if (empty? items)
+          [:div "Nothing to show"]
+          [:table
+           (into
+            [:tbody
+             [:tr [:th.id "Id"]
+              [:th.display "Display"]
+              [:th.size "Size"]]]
+            (for [i items]
+              [:tr.item {:key (:id i)
+                         :on-click #(redirect (href "resource" "edit" {:type type :id (:id i)}))}
+               [:td.id (:id i)]
+               [:td.display (ws/resource-display i)]
+               [:td.size (.-length (str i))]
+               ]))])
+        )]]))
 
 (def routes {:resource-grid (fn [params]
                               ;; (prn "grid-panel --------------------------------------" params)

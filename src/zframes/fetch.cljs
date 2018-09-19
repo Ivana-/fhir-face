@@ -73,7 +73,7 @@
     (->
      (js/fetch (str url (when params (str "?" (to-query params))))
                (clj->js fetch-opts))
-     (.then
+     #_(.then
       (fn [resp]
         (.then (.json resp)
                (fn [doc]
@@ -87,14 +87,19 @@
                        (throw e))
                      (js/Promise.resolve res)))))
         ))
-     #_(.then .json)
-     #_(.then (fn [doc]
-                (let [data (js->clj doc :keywordize-keys true)
-                      res {:request opts
-                           ;;:response resp
-                           :data data
-                           :transit transit}]
-                  (js/Promise.resolve res))))
+
+     (.then (fn [resp] (js/Promise.all [resp (.json resp)])))
+
+     (.then (fn [[resp doc]] (let [data (js->clj doc :keywordize-keys true)
+                                   res {:request opts
+                                        :response resp
+                                        :data data}]
+                               (if (> (.-status resp) 299)
+                                 (let [e (js/Error. (str "Failed to fetch " uri))]
+                                   (aset e "params" res)
+                                   (throw e))
+                                 (js/Promise.resolve res)))))
+
      ;; (.catch (fn [e] (throw (js/Error. (str "failed to fetch " uri)))))
      )))
 

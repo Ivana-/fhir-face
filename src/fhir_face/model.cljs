@@ -189,7 +189,7 @@
 
      (-> (js/Promise.all [(if-not (:entity data)
                             (fetch-promise {:uri (str base-url "/Entity")
-                                            :params {:_count 500 :.type "resource" :_sort ".id"}
+                                            :params {:_count 1000 :.type "resource" :_sort ".id"}
                                             :token token}))
                           (if (and type (not= type (get-in data [:query-params :type])))
                             (fetch-promise {:uri (str base-url "/Attribute")
@@ -202,8 +202,14 @@
                                                       (and _text (not (str/blank? _text))) (assoc :_text _text))}))
                           (if (and type id (= :resource-edit page))
                             (fetch-promise {:uri (str base-url "/" type "/" id)
+                                            :token token}))
+                          (if (and (= :graph-view page) (empty? (:references-graph data)))
+                            (fetch-promise {:uri (str base-url "/Attribute")
+                                            :params {:_text "resourceType\"]" ;; id: Immunization.patient.resourceType, path: [patient, resourceType]
+                                                     :_count 2000
+                                                     :_elements "resource,enum"}
                                             :token token}))])
-         (.then (fn [[e a g i]]
+         (.then (fn [[e a g i rg]]
                   (rf/dispatch [::set-values-by-paths
                                 (cond-> {(fp :error) nil
                                          fetching-path false
@@ -212,6 +218,10 @@
                                   a (assoc (fp :resource-structure) (get-res-structure a))
                                   g (assoc (fp :resource-grid) (mapv :resource (get-in g [:data :entry])))
                                   i (assoc (fp :resource) (:data i))
+                                  rg (assoc (fp :references-graph)
+                                            (reduce (fn [a x] (update-in a [(get-in x [:resource :resource :id]) :edges]
+                                                                         #(into (or % #{}) (set (get-in x [:resource :enum])))))
+                                                    {} (get-in rg [:data :entry])))
                                   (= :resource-new page) (assoc (fp :resource) {:resourceType type})
                                   )])))
 
@@ -224,6 +234,45 @@
      {:db (assoc-in db fetching-path true)}
      )))
 
+#_(rf/reg-event-fx
+ ::load-attribute
+ (fn [{db :db} [_ {page :page params :query-params}]]
+   ;;(prn "test-fetch" page params)
+   (let [;;{:keys [type _text id]} params
+         base-url (get-in db [:config :base-url])
+         token (get-in db [:auth :id_token])
+         data (get-in db (conj root-path :data))
+         fp (fn [k] (conj root-path :data k))
+         fetching-path (fp :is-fetching)
+         ]
+
+
+     ;;enum: [DiagnosticReport, ImagingStudy, Immunization, MedicationAdministration,
+     ;;       MedicationDispense, Observation, Procedure, SupplyDelivery]
+     ;;resource: {id: ChargeItem, resourceType: Entity}
+
+     (-> (fetch-promise {:uri (str base-url "/Attribute")
+                         :params {:_text "resourceType\"]"
+                                   :_count 2000
+                                   :_elements "resource,enum"}
+                         ;;id: Immunization.patient.resourceType
+                         ;;enum: [Patient]
+                         ;;path: [patient, resourceType]
+                         :token token})
+         (.then (fn [x] (rf/dispatch [::set-values-by-paths
+                                      {(fp :error) nil
+                                         fetching-path false
+                                         ;;(fp :query-params) params
+                                         (fp :resource-graph) ;;(mapv :resource (get-in x [:data :entry]))
+                                       (reduce (fn [a x] (update-in a [(get-in x [:resource :resource :id]) :edges]
+                                                                    #(into (or % #{}) (set (get-in x [:resource :enum])))))
+                                               {} (get-in x [:data :entry]))
+
+                                       }])))
+
+         (.catch (fn [e] (rf/dispatch [::set-values-by-paths {(fp :error) (str e)
+                                                              fetching-path false}]))))
+     {:db (assoc-in db fetching-path true)})))
 
 (rf/reg-sub
  ::data

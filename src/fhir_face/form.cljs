@@ -4,6 +4,7 @@
    [re-frame.core :as rf]
    [clojure.string :as str]
    [fhir-face.style :as style]
+   [fhir-face.nav :as nav]
    [fhir-face.model :as model]
    [zframes.redirect :refer [href redirect]]
    [fhir-face.widgets :as ws]
@@ -342,18 +343,12 @@
         expanded? (or (empty? path) (get-in e path))
         count-all (count (set/union (-> attrs :content keys* set) (-> val keys* set)))
         count-val (if (coll? val) (count val) 0)
-        collapsed-info ;;[:span.non-selectable
-        [:span.label.non-selectable.collapsed-summary
-         (click-dispatch [::model/expand-collapse-node path])
-         (if collection?
-           (str "[" count-val " item" (if (not= 1 count-val) "s") "]")
-           (str "{" (if (= count-val count-all) count-all (str count-val "/" count-all))
-                " key" (if (not= 1 count-all) "s") "}"))]
-        #_[:i.material-icons
-           (update (click-dispatch [::model/expand-collapse-node path])
-                   :style assoc :margin-left "5px")
-           (if (get-in e path) :location_on :play_arrow)]
-         ;;]
+        collapsed-info [:span.label.non-selectable.collapsed-summary
+                        (click-dispatch [::model/expand-collapse-node path])
+                        (if collection?
+                          (str "[" count-val " item" (if (not= 1 count-val) "s") "]")
+                          (str "{" (if (= count-val count-all) count-all (str count-val "/" count-all))
+                               " key" (if (not= 1 count-all) "s") "}"))]
         ]
     [:div
      {:class (cond (keyword? name) :name-value
@@ -414,28 +409,30 @@
   (let [{:keys [resource resource-expands resource-structure is-fetching error]} @(rf/subscribe [::model/data])]
     [:div.page
      [style/with-common-style (style)]
-     [:span
-      {:style {:display :flex
-               :align-items :baseline}}
-      [:h1.h (str (if id "Edit " "New ") (:type params))] [:span.label (:id params)]]
+     [nav/nav-bar]
+     [:div.content
+      [:span
+       {:style {:display :flex
+                :align-items :baseline}}
+       [:h1.h (str (if id "Edit " "New ") (:type params))] [:span.label (:id params)]]
 
-     [:div.bar
-      [:span {:style {:display :flex}}
-       [:button.btn {:on-click (fn [] (rf/dispatch [::model/expand-all]))} "Expand all"]
-       [:button.btn {:on-click (fn [] (rf/dispatch [::model/collapse-all]))} "Collapse all"]
-       [:button.btn {:on-click (fn [] (swap! atom-style update :style #(mod (inc %) (count styles))))}
-        (str (get styles (:style @atom-style)) " style")]]
-      [:span.action {:on-click #(redirect (href "resource" {:type type}))} (str type " grid")]]
+      [:div.bar
+       [:span {:style {:display :flex}}
+        [:button.btn {:on-click (fn [] (rf/dispatch [::model/expand-all]))} "Expand all"]
+        [:button.btn {:on-click (fn [] (rf/dispatch [::model/collapse-all]))} "Collapse all"]
+        [:button.btn {:on-click (fn [] (swap! atom-style update :style #(mod (inc %) (count styles))))}
+         (str (get styles (:style @atom-style)) " style")]]
+       [:span.action {:on-click #(redirect (href "resource" {:type type}))} (str type " grid")]]
 
-     (if is-fetching
-       [:div.loader "Loading"]
-       [:div
-        [zofo resource resource-expands [] {:content resource-structure}]
-        [:div.footer-actions
-         [:button.btn {:on-click (fn [] (rf/dispatch [::model/save-resource params]))} "Save"]
-         #_[:a.btn.btn-danger {:href (href "locations")} "Cancel"]]
-        (if error [:pre.error (with-out-str (cljs.pprint/pprint error))])])
-     ]))
+      (if is-fetching
+        [:div.loader "Loading"]
+        [:div
+         [zofo resource resource-expands [] {:content resource-structure}]
+         [:div.footer-actions
+          [:button.btn {:on-click (fn [] (rf/dispatch [::model/save-resource params]))} "Save"]
+          #_[:a.btn.btn-danger {:href (href "locations")} "Cancel"]]
+         (if error [:pre.error (with-out-str (cljs.pprint/pprint error))])])
+      ]]))
 
 (defn for-routes [params]
   ;; (prn "form-panel --------------------------------------" params)
