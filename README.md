@@ -1,11 +1,13 @@
 # fhir-face
 
-Universal frontend view to any sansara fhir server
+Universal frontend view to any sansara/hapi/... fhir server
+
+## [Play with online demo!](https://codepen.io/Ivana-/project/full/DQNzwY/)
 
 ## Overview
 
 This application allows simple full-text search, CRUD and possible pretty view
-for any fhir resource, containing in choosen sansara fhir server.
+for any fhir resource, containing in choosen supported fhir server.
  
 ![alt text](https://user-images.githubusercontent.com/10473034/45783479-9199cb80-bc6e-11e8-959b-90f46b4c5a45.png "Reference graph view")
 
@@ -22,7 +24,7 @@ To get an interactive development environment run:
 
     lein figwheel
 
-and open your browser at `http://localhost:3449/?base-url=<url-of-your-sansara-fhir-server>#/resource`
+and open your browser at `http://localhost:3449/?base-url=<url-of-your-fhir-server>#/resource`
 
 This will auto compile and send all changes to the browser without the
 need to reload. After the compilation process is complete, you will
