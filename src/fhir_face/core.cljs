@@ -41,7 +41,7 @@
    ;;(prn "========================================= ::initialize")
    ;;(prn cofx)
    ;;(prn (cookies/get-cookie :auth))
-   (let [default-base-url "http://hapi.fhir.org/baseDstu3"
+   (let [default-base-url "https://hapi.fhir.org/baseDstu3"
 
 
 
