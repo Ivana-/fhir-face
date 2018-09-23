@@ -43,5 +43,5 @@
   (let [params @(re-frame/subscribe [::active-panel])]
     (if-let [route-fn (routes (:page params))]
       [route-fn params]
-      [:div {:style {:font-size "30px"}} "No matched route"])))
+      [:div {:style {:font-size "30px"}} (str "No matched route " params)])))
 

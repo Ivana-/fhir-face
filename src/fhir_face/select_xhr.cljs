@@ -83,21 +83,20 @@
           (map #(is-child? % child)
                (array-seq (.-childNodes par))))))
 
-(defn select-xhr [{:keys [value resourceType] :as opts}]
+(defn select-xhr [{:keys [value resourceType value-type] :as opts}]
   (let [common-fetch-params (rf/subscribe [::common-fetch-params])
 
-        ;; FIXME show all types is incoming list is empty
-        resourceType (if (empty? resourceType) (into [""] (:all-resourceTypes @common-fetch-params)) resourceType)
-
-        value-type (:resourceType value)
-        state (r/atom {:resourceType (or value-type (first resourceType))
+        ;; FIXME show all types if incoming list is empty
+        resourceType (let [rt (into [""] (if (empty? resourceType) (:all-resourceTypes @common-fetch-params) resourceType))]
+                       (if ;;(and (not (str/blank? value-type))
+                                (not (contains? (set rt) value-type)) ;;)
+                         (conj rt value-type)
+                         rt))
+        state (r/atom {:resourceType value-type ;;(if (= 1 (count resourceType)) (first resourceType))
                        :suggestions []})
         close #(swap! state assoc
                       :active false
                       :suggestions [])
-        resourceType (if (and (not (str/blank? value-type)) (not (contains? (set resourceType) value-type)))
-                       (conj resourceType value-type)
-                       resourceType)
         doc-click-listener (fn [e]
                              (let [outer-click? (not (is-child? (:root-node @state) (.-target e)))]
                                (when (and outer-click? (:active @state))
@@ -131,15 +130,16 @@
                                                :loading false
                                                :suggestions (mapv (comp value-fn :resource) (:entry x))))}))
               (fn [text]
-                (swap! state assoc :loading true)
-                (-> (fetch/fetch-promise {:uri (str (:base-url @common-fetch-params) "/" (:resourceType @state))
+                (when-let [rt (:resourceType @state)]
+                  (swap! state assoc :loading true)
+                  (-> (fetch/fetch-promise {:uri (str (:base-url @common-fetch-params) "/" rt)
                                           :token (:id_token @common-fetch-params)
                                           :params (cond-> {:_count 50} ;; :_sort "name"}
                                                     (and text (not (str/blank? text))) (assoc :_text text))})
                     (.then (fn [x] (swap! state assoc
                                           :loading false
                                           :suggestions (mapv (comp value-fn :resource) (:entry (:data x))))))
-                    (.catch (fn [e] (prn (fetch/error-message e))))))]
+                    (.catch (fn [e] (prn (fetch/error-message e)))))))]
 
           [:div.select-xhr
            [:style (garden/css style)]
@@ -154,11 +154,12 @@
 
            [:div.value-xhr
             [:div.choosen
-             {:on-click (fn [_] (if (:active @state)
-                                  (close)
-                                  (do
-                                    (fetch-load nil)
-                                    (swap! state assoc :active true))))}
+             {:on-click (fn [_] (cond
+                                  (:active @state) (close)
+                                  (not (str/blank? (:resourceType @state))) (do
+                                                                              (fetch-load nil)
+                                                                              (swap! state assoc :active true))
+                                  :else (js/alert "select resource type")))}
              [:span.triangle "▾"]
              [:span.value (if value (label-fn value) placeholder)]
              (when value

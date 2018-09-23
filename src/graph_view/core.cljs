@@ -461,67 +461,71 @@
     ;;(user-data state)
 
     (fn [params]
-      (prn "main-page-fn" params)
-
+      ;;(prn "main-page-fn" params)
       (let [data @(rf/subscribe [::model/data])]
-      [:div.page
-       [style/style style]
-       [nav/nav-bar]
-       [:div.content
-       ;;[:div (str @state)]
-       [:span.bar
-        [:div.btn-group
-         [:button.btn {:on-click #(stop-go state)
-                  :class (if (:simulation-on @state) :red :green)} (if (:simulation-on @state) "Stop" "Go!")]
-         [:button.btn {:on-click #(swap! state assoc :data {})} "Clear"]]
-        [:label.label "repulsive force"]
-        [ws/input-range {:state state
-                         :path [:repulsive-force]}]
-        [:label.label "coupling stiffness factor"]
-        [ws/input-range {:state state
-                         :path [:coupling-stiffness-factor]}]
-        [:label.label "relative edge length"]
-        [ws/input-range {:state state
-                         :min 10
-                         :path [:relative-edge-length]}]
-        #_[:div.vertexes-names
-         [:label.label "show vertex names"]
-         [ws/input-checkbox {:state state
-                             :path [:show-vertex-names]}]]
-        #_[:div.splitter]
-        #_[:button.btn {:on-click #(rf-data data state)} "RF data"]
-        #_[:button.btn {:on-click #(random-data state)} "Random data"]
-        #_[:div.vertexes-edges
-         [:label.label "vertices"]
-         [ws/input-integer {:state state
-                            :path [:vertexes-amount]
-                            :class "input integer"}]
-         [:label.label ""]
-         [:label.label "edges"]
-         [ws/input-integer {:state state
-                            :path [:edges-amount]
-                            :class "input integer"}]]
-        #_[:div.splitter]
-        #_[:button.btn {:on-click #(user-data state)} "Custom data"]
-        #_[ws/input-textarea {:state state
-                            :path [:input-graph]
-                            :class "input edges-list"}]
-        [:div.vertex-list
-         (doall (map-indexed (fn [i x]
-                               (let [id (:id x)]
-                                 [:div.menu-item {:key i
-                                                  :on-click (fn []
-                                                              (if (get-in @state [:data id])
-                                                                (swap! state update :data #(dissoc % id))
-                                                                (swap! state update :data
-                                                                       #(assoc % id (assoc (get (:references-graph data) id)
-                                                                                           :x (Math/random) :y (Math/random))))))
-                                                  :class (if (get-in @state [:data id]) :added :not-added)}
-                                  (str id " " (count (get-in data [:references-graph id :edges])))])) (:entity data)))]
-        ]
-       [area-component {:state state :data data}]]]))))
+        (cond
+          (:is-fetching data) [:div.loader "Loading"]
+
+          (:error data) [:div (str (:error data))]
+
+          :else [:div.page
+                 [style/style style]
+                 [nav/nav-bar]
+                 [:div.content
+                  ;;[:div (str @state)]
+                  [:span.bar
+                   [:div.btn-group
+                    [:button.btn {:on-click #(stop-go state)
+                                  :class (if (:simulation-on @state) :red :green)} (if (:simulation-on @state) "Stop" "Go!")]
+                    [:button.btn {:on-click #(swap! state assoc :data {})} "Clear"]]
+                   [:label.label "repulsive force"]
+                   [ws/input-range {:state state
+                                    :path [:repulsive-force]}]
+                   [:label.label "coupling stiffness factor"]
+                   [ws/input-range {:state state
+                                    :path [:coupling-stiffness-factor]}]
+                   [:label.label "relative edge length"]
+                   [ws/input-range {:state state
+                                    :min 10
+                                    :path [:relative-edge-length]}]
+                   #_[:div.vertexes-names
+                      [:label.label "show vertex names"]
+                      [ws/input-checkbox {:state state
+                                          :path [:show-vertex-names]}]]
+                   #_[:div.splitter]
+                   #_[:button.btn {:on-click #(rf-data data state)} "RF data"]
+                   #_[:button.btn {:on-click #(random-data state)} "Random data"]
+                   #_[:div.vertexes-edges
+                      [:label.label "vertices"]
+                      [ws/input-integer {:state state
+                                         :path [:vertexes-amount]
+                                         :class "input integer"}]
+                      [:label.label ""]
+                      [:label.label "edges"]
+                      [ws/input-integer {:state state
+                                         :path [:edges-amount]
+                                         :class "input integer"}]]
+                   #_[:div.splitter]
+                   #_[:button.btn {:on-click #(user-data state)} "Custom data"]
+                   #_[ws/input-textarea {:state state
+                                         :path [:input-graph]
+                                         :class "input edges-list"}]
+                   [:div.vertex-list
+                    (doall (map-indexed (fn [i x]
+                                          (let [id (:id x)]
+                                            [:div.menu-item {:key i
+                                                             :on-click (fn []
+                                                                         (if (get-in @state [:data id])
+                                                                           (swap! state update :data #(dissoc % id))
+                                                                           (swap! state update :data
+                                                                                  #(assoc % id (assoc (get (:references-graph data) id)
+                                                                                                      :x (Math/random) :y (Math/random))))))
+                                                             :class (if (get-in @state [:data id]) :added :not-added)}
+                                             (str id " " (count (get-in data [:references-graph id :edges])))])) (:entity data)))]
+                   ]
+                  [area-component {:state state :data data}]]])))))
 
 (def routes {:graph-view (fn [params]
-                               (prn "graph-view --------------------------------------" params)
+                               ;;(prn "graph-view --------------------------------------" params)
                                (rf/dispatch [::model/load-all params])
                                [main-page (:query-params params)])})

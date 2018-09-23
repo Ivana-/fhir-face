@@ -122,13 +122,14 @@
 
 #_(defn value-set [s] (str/split s #" \| "))
 
-(defn primitive-component [{:keys [type path enum content]}]
+(defn primitive-component [{:keys [type path enum content settings]}]
   (let [cmp (if enum ws/select (get fhir-primitive-types type ws/text))]
     [cmp (merge {:path (into (conj model/root-path :data :resource) path)
                  :class :input}
                 (cond
                   enum {:items enum}
-                  (= type :Reference) {:resourceType (get-in content [:resourceType :enum])}))]))
+                  (= type :Reference) {:resourceType (get-in content [:resourceType :enum])
+                                       :settings settings}))]))
 
 (def Quantity {:value {:type :decimal}
                :comparator {:type :code :enum ["<" "<=" ">=" ">"]}
@@ -333,14 +334,29 @@
         (contains? holder-value (last ks)))))
 
 
-(defn zofo [r e path attrs*]
+
+
+
+
+
+;;:HumanName
+#_{:use {:type :code :enum ["usual" "official" "temp" "nickname" "anonymous" "old" "maiden"]}
+            :text {:type :string}
+            :family {:type :string}
+            :given {:type :string :isCollection true}
+            :prefix {:type :string :isCollection true}
+            :suffix {:type :string :isCollection true}
+            :period {:type :Period}}
+
+
+(defn zofo [r {:keys [expands settings] :as e} path attrs*]
   (let [val? (exists-in? r path)
         val (get-in r path)
         name (last path)
         type (:type attrs*)
         attrs (if-let [cnt (fhir-basic-types type)] (assoc attrs* :content cnt) attrs*)
         collection? (or (:isCollection attrs) (vector? val))
-        expanded? (or (empty? path) (get-in e path))
+        expanded? (or (empty? path) (get-in expands path))
         count-all (count (set/union (-> attrs :content keys* set) (-> val keys* set)))
         count-val (if (coll? val) (count val) 0)
         collapsed-info [:span.label.non-selectable.collapsed-summary
@@ -381,7 +397,7 @@
 
        collection? (if expanded? [coll-zofo r e path attrs] collapsed-info)
 
-       (or (fhir-primitive-types type) (= 0 count-all)) [primitive-component (assoc attrs :path path)]
+       (or (fhir-primitive-types type) (= 0 count-all)) [primitive-component (assoc attrs :path path :settings settings)]
 
        (not expanded?) collapsed-info
 
@@ -406,7 +422,8 @@
 
 (defn resource-form [{:keys [type id] :as params}]
   ;;(prn "resource-form" params)
-  (let [{:keys [resource resource-expands resource-structure is-fetching error]} @(rf/subscribe [::model/data])]
+  (let [{:keys [resource resource-expands resource-structure is-fetching error]} @(rf/subscribe [::model/data])
+        settings @(rf/subscribe [::ws/get-value [:config :settings]])]
     [:div.page
      [style/with-common-style (style)]
      [nav/nav-bar]
@@ -427,7 +444,7 @@
       (if is-fetching
         [:div.loader "Loading"]
         [:div
-         [zofo resource resource-expands [] {:content resource-structure}]
+         [zofo resource {:expands resource-expands :settings settings} [] {:content resource-structure}]
          [:div.footer-actions
           [:button.btn {:on-click (fn [] (rf/dispatch [::model/save-resource params]))} "Save"]
           #_[:a.btn.btn-danger {:href (href "locations")} "Cancel"]]

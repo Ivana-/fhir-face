@@ -54,7 +54,8 @@
 
   ;; must be at the end, cause routes matches by order
   (defroute "*" []
-    (re-frame/dispatch [::set-active-panel {:page :blank}]))
+    (re-frame/dispatch [::set-active-panel {:page :resource-grid ;;:blank
+    }]))
 
   ;; --------------------
   (hook-browser-navigation!))

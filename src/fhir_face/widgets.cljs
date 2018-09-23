@@ -150,7 +150,7 @@
               (dissoc :path)
               (assoc
                :type "number"
-               :step "0.00001"
+               :step "0.000000000000001"
                :value (str @(rf/subscribe [::get-value path]))
                :on-change #(rf/dispatch [::set-value path (js/parseFloat (.. % -target -value))])))])
 
@@ -214,13 +214,23 @@
              first))))
 
 
-(defn reference [{:keys [path resourceType] :as params}]
-  [xhr/select-xhr {:value @(rf/subscribe [::get-value path])
-                   :label-fn #(str "[" (:id %) "]  " (:display %))
-                   :value-fn #(let [d (resource-display %)]
-                                (cond-> (select-keys % [:id :resourceType])
-                                  (not (str/blank? d)) (assoc :display d)))
+(defn reference [{:keys [path resourceType settings] :as params}]
+  (let [value @(rf/subscribe [::get-value path])]
+    [xhr/select-xhr (merge
+                   {:value value
                    ;;:placeholder "Xhr select"
                    ;;:on-blur identity
                    :on-change #(rf/dispatch [::set-value path %])
-                   :resourceType resourceType}])
+                   :resourceType resourceType}
+                   (case (:fhir-server-type settings)
+                     :hapi
+                     {:label-fn (fn [x] (let [[rt id] (str/split (:reference x) #"/")] (str (if id (str "[" id "]  ")) (:display x))))
+                      :value-fn (fn [x] (let [d (resource-display x)]
+                                  (cond-> {:reference (str (:resourceType x) "/" (:id x))}
+                                    (not (str/blank? d)) (assoc :display d))))
+                      :value-type (str (first (str/split (:reference value) #"/")))}
+                     {:label-fn #(str "[" (:id %) "]  " (:display %))
+                      :value-fn #(let [d (resource-display %)]
+                                  (cond-> (select-keys % [:id :resourceType])
+                                    (not (str/blank? d)) (assoc :display d)))
+                      :value-type (str (:resourceType value))}))]))

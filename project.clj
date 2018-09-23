@@ -35,7 +35,10 @@
                            ;; started and compiled your application.
                            ;; Comment this out once it no longer serves you.
                            :open-urls [;;"http://localhost:3449/?base-url=http://localhost:8080&client_id=local#/resource"
-                                       "http://localhost:3449/?base-url=http://localhost:8080&client_id=local#/graph-view"
+                                       ;;"http://localhost:3449/?base-url=http://localhost:8080&client_id=local#/graph-view"
+                                        "http://localhost:3449/?base-url=http://hapi.fhir.org/baseDstu3#/graph-view"
+
+
                                        ]}
 
                 :compiler {:main fhir-face.core

@@ -62,7 +62,11 @@
   (let [headers (merge (or headers {})
                        {"Accept" "application/json"
                         "content-type" "application/json"
-                        "Authorization" (str "Bearer " token)})
+
+                        ;; FIXME return on sansara servers
+                        ;;"Authorization" (str "Bearer " token)
+
+                        })
         fetch-opts (-> (merge {:method "get" :mode "cors"} opts)
                        (dissoc :uri :headers :params)
                        (assoc :headers headers))

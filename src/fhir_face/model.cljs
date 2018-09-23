@@ -124,9 +124,7 @@
 
 ;; Via promises
 
-(rf/reg-event-fx
- ::load-all
- (fn [{db :db} [_ {page :page params :query-params}]]
+ (defn load-all-sansara [db [_ {page :page params :query-params}]]
    ;;(prn "test-fetch" page params)
    (let [{:keys [type _text id]} params
          base-url (get-in db [:config :base-url])
@@ -232,7 +230,150 @@
          (.then #(assoc-in % [:transit :zazaza] "zazaza")))
 
      {:db (assoc-in db fetching-path true)}
-     )))
+     ))
+
+
+
+ (defn load-all-hapi [db [_ {page :page params :query-params}]]
+   ;;(prn "test-fetch" page params)
+   (let [{:keys [type _text id]} params
+         base-url (get-in db [:config :base-url])
+         token (get-in db [:auth :id_token])
+         data (get-in db (conj root-path :data))
+         fp (fn [k] (conj root-path :data k))
+         fetching-path (fp :is-fetching)
+         get-res-structure (fn [resp]
+                             (let [s (reduce (fn [a x]
+                                               (update-in a
+                                                          (->> (str/split (:path x) #"\.") rest (interpose :content) (mapv keyword))
+                                                          #(merge % (cond-> x
+                                                                      (:type x) (assoc ;;:type-full (:type x)
+                                                                                 :type (keyword (get-in x [:type 0 :code])))
+
+                                                                      (:type x) (assoc-in [:content :resourceType :enum]
+                                                                                          (mapv (fn [t] (last (str/split (:targetProfile t) #"/"))) (:type x)))
+                                                                      ;;(get-in content [:resourceType :enum])
+                                                                      ;;:type [1 items]
+                                                                      ;;{:code "Reference"
+                                                                      ;; :targetProfile "http://hl7.org/fhir/StructureDefinition/Organization"}
+
+                                                                      (< 0 (or (:min x) 0)) (assoc :isRequired true)
+                                                                      (= "*" (:max x)) (assoc :isCollection true)
+                                                                      (:short x) (assoc :description (:short x))
+                                                                      ;;true (dissoc :resource :path :id :meta :resourceType)
+                                                                      ))))
+                                             {} (get-in resp [:data :snapshot :element])  ;;(mapv :resource (get-in resp [:data :entry]))
+                                             )
+                                   s-with-meta (merge s {:meta {:type :Meta}
+                                                         :resourceType {:type :code}})]
+                               s-with-meta))
+         get-ref-graph (fn [resp]
+                               (let [reference-set (fn [x] (reduce (fn [a t]
+                                                                     (if (= "Reference" (:code t))
+                                                                       (conj a (last (str/split (:targetProfile t) #"/")))
+                                                                       a)) #{} x))]
+                                 (reduce (fn [a {{:keys [type snapshot]} :resource}]
+                                           (update-in a [type :edges]
+                                                      #(into (or % #{})
+                                                        (reduce (fn [a {type :type}] (into a (reference-set type))) #{} (:element snapshot)))))
+                                         {} (get-in resp [:data :entry]))))
+         ]
+
+     (-> (js/Promise.all [#_(if-not (:entity data)
+                             (fetch-promise {:uri (str base-url "/Entity")
+                                             :params {:_count 1000 :.type "resource" :_sort ".id"}
+                                             :token token}))
+                          #_(if (and type (not= type (get-in data [:query-params :type])))
+                             (fetch-promise {:uri (str base-url "/Attribute")
+                                             :params {:entity type}
+                                             :token token}))
+                          #_(if (and type (= :resource-grid page))
+                             (fetch-promise {:uri (str base-url "/" type)
+                                             :token token
+                                             :params (cond-> {:_count 50} ;; :_sort "name"}
+                                                       (and _text (not (str/blank? _text))) (assoc :_text _text))}))
+                          #_(if (and type id (= :resource-edit page))
+                             (fetch-promise {:uri (str base-url "/" type "/" id)
+                                             :token token}))
+                          #_(if (and (= :graph-view page) (empty? (:references-graph data)))
+                             (fetch-promise {:uri (str base-url "/Attribute")
+                                             :params {:_text "resourceType\"]" ;; id: Immunization.patient.resourceType, path: [patient, resourceType]
+                                                      :_count 2000
+                                                      :_elements "resource,enum"}
+                                             :token token}))
+
+
+                          (if-not (:entity data)
+                            (fetch-promise {:uri (str base-url "/StructureDefinition")
+                                            :params {:_count 1000
+                                                     :_elements "id,name,type,url"
+                                                     :_sort "type"
+                                                     ;;:type "Location"
+                                                     :derivation "specialization"
+                                                     :base "http://hl7.org/fhir/StructureDefinition/DomainResource"}
+                                            :token token}))
+
+                          (if (and type (not= type (get-in data [:query-params :type])))
+                            (fetch-promise {:uri (str base-url "/StructureDefinition/" type)
+                                            ;;:params {:entity type}
+                                            :token token}))
+
+                          (if (and type (= :resource-grid page))
+                            (fetch-promise {:uri (str base-url "/" type)
+                                            :token token
+                                            :params (cond-> {:_count 50} ;; :_sort "name"}
+                                                      (and _text (not (str/blank? _text))) (assoc :_content _text))}))
+
+                          (if (and type id (= :resource-edit page))
+                            (fetch-promise {:uri (str base-url "/" type "/" id)
+                                            :token token}))
+
+                          (if (and (= :graph-view page) (empty? (:references-graph data)))
+                            (fetch-promise {:uri (str base-url "/StructureDefinition")
+                                            :params {:_count 1000
+                                                     :derivation "specialization"
+                                                     :base "http://hl7.org/fhir/StructureDefinition/DomainResource"}
+                                            :token token}))
+
+                          #_(fetch-promise {:uri (str base-url "/StructureDefinition")
+                                          :params {:_count 1000 :type "Location" }
+                                          :token token})
+
+                          ])
+         (.then (fn [[e a g i rg]]
+                  (rf/dispatch [::set-values-by-paths
+                                (cond-> {(fp :error) nil
+                                         fetching-path false
+                                         (fp :query-params) params}
+                                  e (assoc (fp :entity) (mapv (fn [x] {:id (get-in x [:resource :type])}) (get-in e [:data :entry])))
+                                  a (assoc (fp :resource-structure) (get-res-structure a))
+                                  g (assoc (fp :resource-grid) (mapv :resource (get-in g [:data :entry])))
+                                  i (assoc (fp :resource) (:data i))
+                                  rg (assoc (fp :references-graph) (get-ref-graph rg))
+                                  (= :resource-new page) (assoc (fp :resource) {:resourceType type})
+
+                                  ;;zzz (assoc (fp :zzz) (:data zzz) #_(mapv :resource (get-in zzz [:data :entry])))
+                                  )])))
+
+         (.catch (fn [e] (rf/dispatch [::set-values-by-paths {(fp :error) (str e)
+                                                              fetching-path false}]))))
+
+     #_(-> (js/Promise.resolve {:qqq 333})
+        (.then #(assoc-in % [:transit :zazaza] "zazaza")))
+
+     {:db (assoc-in db fetching-path true)}
+     ))
+
+
+(rf/reg-event-fx
+ ::load-all
+ (fn [{db :db} args]
+   ((case (get-in db [:config :settings :fhir-server-type])
+     :hapi load-all-hapi
+     load-all-sansara)
+     db args)))
+
+
 
 #_(rf/reg-event-fx
  ::load-attribute
@@ -452,12 +593,16 @@
                                   :method "PUT"}
                                  {:uri (str base-url "/" type)
                                   :method "POST"})))
+         (.then (fn [_] (rf/dispatch [::set-values-by-paths {(conj root-path :data :is-fetching) false}])))
          (.then (fn [_] (redirect (href "resource" {:type type}))))
          (.catch (fn [e] (rf/dispatch [::set-values-by-paths {(conj root-path :data :error)
                                                               (or
                                                                (dissoc (:data (error-data e)) :resourceType)
-                                                               (error-message e))}]))))
-     {:db (update-in db (conj root-path :data) dissoc :error)})))
+                                                               (error-message e))
+                                                              (conj root-path :data :is-fetching) false}]))))
+     {:db (update-in db (conj root-path :data) #(-> %
+                                                 (dissoc :error)
+                                                 #_(assoc :is-fetching true)))})))
 
 
 (rf/reg-event-db

@@ -41,8 +41,12 @@
    ;;(prn "========================================= ::initialize")
    ;;(prn cofx)
    ;;(prn (cookies/get-cookie :auth))
-   (let [{qs :query-string host :hostname hash :hash url :url :as loc} (window-location/get-location)
-         base-url (:base-url qs) ;; "https://cleo-sansara.health-samurai.io"
+   (let [default-base-url "http://hapi.fhir.org/baseDstu3"
+
+
+
+   {qs :query-string host :hostname hash :hash url :url :as loc} (window-location/get-location)
+         base-url (or (:base-url qs) default-base-url) ;; "https://cleo-sansara.health-samurai.io"
          openid-url (or (:openid-url qs) (str base-url "/oauth2/authorize"))
          cookie-auth-key (str "auth_" base-url)
          auth (cookies/get-cookie cookie-auth-key)]
@@ -63,7 +67,14 @@
         ::cookies/set {:key cookie-auth-key :value (or jwt auth)}
         :db (merge db {:auth (or jwt auth)
                        :config {:base-url base-url
-                                :openid-url openid-url}})}))))
+                                :openid-url openid-url
+
+                                ;; FIXME
+                                :settings (cond
+                                            (re-find #"//hapi\.fhir\.org" base-url) {:fhir-server-type :hapi})
+
+
+                                }})}))))
 
 (defn dev-setup []
   (when config/debug?
