@@ -100,7 +100,11 @@
                                         :data data}]
                                (if (> (.-status resp) 299)
                                  (let [e (js/Error. (str "Failed to fetch " uri))]
-                                   (aset e "params" res)
+                                   ;;(aset e "params" res)
+
+
+
+                                    (set! (.-params e) res)
                                    (throw e))
                                  (js/Promise.resolve res)))))
 

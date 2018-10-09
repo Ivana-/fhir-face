@@ -88,7 +88,8 @@
 
    [:.error {:font-family :monospace
              :font-size "20px"
-             :color :red}]
+             :color :red
+             :margin "20px 0"}]
    ])
 
 
@@ -431,7 +432,7 @@
       [:span
        {:style {:display :flex
                 :align-items :baseline}}
-       [:h1.h (str "_" (if id "Edit " "New ") (:type params))] [:span.label (:id params)]]
+       [:h1.h (str (if id "Edit " "New ") (:type params))] [:span.label (:id params)]]
 
       [:div.bar
        [:span {:style {:display :flex}}
@@ -448,8 +449,8 @@
          [:div.footer-actions
           [:button.btn {:on-click (fn [] (rf/dispatch [::model/save-resource params]))} "Save"]
           #_[:a.btn.btn-danger {:href (href "locations")} "Cancel"]]
-         (if error [:pre.error
-                    (str error)
+         (if error [:div.error ;;:pre.error
+                    (str (or (:issue error) error))
                     ;;(with-out-str (cljs.pprint/pprint error))
                     ])])
       ]]))
