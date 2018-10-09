@@ -448,7 +448,10 @@
          [:div.footer-actions
           [:button.btn {:on-click (fn [] (rf/dispatch [::model/save-resource params]))} "Save"]
           #_[:a.btn.btn-danger {:href (href "locations")} "Cancel"]]
-         (if error [:pre.error (with-out-str (cljs.pprint/pprint error))])])
+         (if error [:pre.error
+                    (str error)
+                    ;;(with-out-str (cljs.pprint/pprint error))
+                    ])])
       ]]))
 
 (defn for-routes [params]
