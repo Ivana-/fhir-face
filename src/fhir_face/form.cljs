@@ -431,7 +431,7 @@
       [:span
        {:style {:display :flex
                 :align-items :baseline}}
-       [:h1.h (str (if id "Edit " "New ") (:type params))] [:span.label (:id params)]]
+       [:h1.h (str "_" (if id "Edit " "New ") (:type params))] [:span.label (:id params)]]
 
       [:div.bar
        [:span {:style {:display :flex}}
